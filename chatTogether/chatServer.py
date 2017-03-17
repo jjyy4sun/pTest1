@@ -21,7 +21,7 @@ class CommandHandler:
         parts = line.split(' ',1)
         cmd = parts[0]
         try:
-            line = pars[1].strip()
+            line = parts[1].strip()
         except IndexError as e:
             line = ''
         meth = getattr(self,'do_'+cmd,None)
@@ -49,7 +49,7 @@ class LoginRoom(Room):
     '''为刚刚连接上的用户建立自己的房间'''
     def add(self,session):
         Room.add(self,session)
-        self.broadcast('Weclome to %s\r\n' self.server.name)
+        self.broadcast('Weclome to %s\r\n' % self.server.name)
     def unknown(self,session,cmd):
         session.push('Please log in\nUse "login <nick>"\r\n')
     def do_login(self,session,line):
@@ -90,11 +90,11 @@ class ChatSession(async_chat):
     '''单会话，负责和单用户通信'''
     def __init__(self,server,sock):
         async_chat.__init__(self,sock)
-        self.sever = server
+        self.server = server
         self.set_terminator('\r\n')
         self.data = []
         self.name = None
-        self.enter(LoginRoom(sever))
+        self.enter(LoginRoom(server))
     def enter(self,room):
         try: cur = self.room
         except AttributeError:pass
@@ -112,5 +112,23 @@ class ChatSession(async_chat):
     def handle_close(self):
         async_chat.handle_close(self)
         self.enter(LogoutRoom(self.server))
-            
+class ChatServer(dispatcher):
+    def __init__(self,port,name):
+        dispatcher.__init__(self)
+        self.create_socket(socket.AF_INET,socket.SOCK_STREAM)
+        self.set_reuse_addr()
+        self.bind(('',port))
+        self.listen(5)
+        self.name = name
+        self.users ={}
+        self.main_room = ChatRoom(self)
+    def handle_accept(self):
+        conn,addr = self.accept()
+        ChatSession(self,conn)
+if __name__ == "__main__":
+    s = ChatServer(PORT,NAME)
+    try:
+        asyncore.loop()
+    except KeyboardInterrupt as e:
+        print       
             
